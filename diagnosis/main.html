@@ -138,19 +138,18 @@
         'https://drive.google.com/thumbnail?id=1MuJ15v1JfyhEi4BZgZlg9aDtE7nd48ML&sz=w1920'
     ];
 
-async function init() {
-    try {
-        // タイムスタンプを付けてキャッシュを回避
-        const response = await fetch('diagnosis_qap.txt?t=' + new Date().getTime());
-        const raw = await response.text();
-        parseFile(raw);
-        updateBackground(0);
-        render();
-    } catch (e) {
-        document.getElementById('question-label').innerText = "diagnosis_qap.txtを読み込めませんでした。";
-        console.error(e);
+    async function init() {
+        try {
+            // タイムスタンプを付けてキャッシュを回避
+            const response = await fetch('diagnosis_qap.txt?t=' + new Date().getTime());
+            const raw = await response.text();
+            parseFile(raw);
+            render();
+        } catch (e) {
+            document.getElementById('question-label').innerText = "diagnosis_qap.txtを読み込めませんでした。";
+            console.error(e);
+        }
     }
-}
 
     function parseFile(content) {
         const lines = content.split('\n');
@@ -194,8 +193,8 @@ async function init() {
 
     function updateBackground(ratio) {
         let url = "";
-        if (ratio <= 0.33) url = bgLinks[0];
-        else if (ratio <= 0.66) url = bgLinks[1];
+        if (ratio < 0.33) url = bgLinks[0];
+        else if (ratio < 0.66) url = bgLinks[1];
         else url = bgLinks[2];
         
         // フェード効果を追加
@@ -210,6 +209,11 @@ async function init() {
 
     function render() {
         if (questions.length === 0) return;
+        
+        // 現在の進捗率に基づいて背景を更新
+        const progressRatio = currentIdx / questions.length;
+        updateBackground(progressRatio);
+        
         const data = questions[currentIdx];
         document.getElementById('question-label').innerText = data.q;
         const list = document.getElementById('choices-list');
@@ -241,6 +245,7 @@ async function init() {
         const ratio = maxScore > 0 ? score / maxScore : 0;
         const percent = Math.round(ratio * 100);
 
+        // 結果画面では常に3枚目を表示（最終スコアに基づいて）
         updateBackground(ratio);
 
         let finalRank = "";
