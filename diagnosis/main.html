@@ -138,18 +138,19 @@
         'https://drive.google.com/thumbnail?id=1MuJ15v1JfyhEi4BZgZlg9aDtE7nd48ML&sz=w1920'
     ];
 
-    async function init() {
-        try {
-            const response = await fetch('diagnosis_qap.txt');
-            const raw = await response.text();
-            parseFile(raw);
-            updateBackground(0);
-            render();
-        } catch (e) {
-            document.getElementById('question-label').innerText = "diagnosis_qap.txtを読み込めませんでした。";
-            console.error(e);
-        }
+async function init() {
+    try {
+        // タイムスタンプを付けてキャッシュを回避
+        const response = await fetch('diagnosis_qap.txt?t=' + new Date().getTime());
+        const raw = await response.text();
+        parseFile(raw);
+        updateBackground(0);
+        render();
+    } catch (e) {
+        document.getElementById('question-label').innerText = "diagnosis_qap.txtを読み込めませんでした。";
+        console.error(e);
     }
+}
 
     function parseFile(content) {
         const lines = content.split('\n');
