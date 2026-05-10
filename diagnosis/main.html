@@ -175,8 +175,17 @@
                     maxScore += qMax;
                 }
             } else {
-                const [threshold, label] = t.split(':');
-                rankData.push({ threshold: parseInt(threshold), label: label.trim() });
+                // point:ラベル<閾値><#HEX>
+                const items = t.split(',');
+                items.forEach((item) => {
+                    const match = item.match(/point:(.+)<(\d+)><#([0-9A-Fa-f]{6})>/);
+                    if (match) {
+                        const label = match[1].trim();
+                        const threshold = parseInt(match[2]);
+                        const color = '#' + match[3];
+                        rankData.push({ threshold: threshold, label: label, color: color });
+                    }
+                });
             }
         });
         rankData.sort((a, b) => b.threshold - a.threshold);
@@ -240,6 +249,7 @@
                 break;
             }
         }
+
         document.getElementById('final-percent').innerText = `test度: ${percent}%`;
         document.getElementById('rank-label').innerText = finalRank;
     }
