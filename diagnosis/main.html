@@ -7,47 +7,64 @@
         body {
             margin: 0;
             padding: 0;
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
             min-height: 100vh;
             display: flex;
             justify-content: center;
-            /* 枠を画面の中央（上下）に配置 */
             align-items: center; 
             font-family: sans-serif;
-            transition: background-image 0.5s ease;
-            background-color: #333; /* 画像読み込みまでの予備色 */
+            background-color: #333;
+        }
+
+        /* 背景画像を疑似要素で管理 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            z-index: -1;
+            transition: opacity 0.8s ease;
+            opacity: 1;
+        }
+
+        /* フェード中のクラス */
+        body.fade-bg::before {
+            opacity: 0;
         }
 
         .container {
-            /* 画面の4分の3（75%）の大きさに設定 */
             width: 75vw; 
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 20px;
+            position: relative;
+            z-index: 1;
         }
 
         .display-box {
             width: 100%;
             background-color: rgba(255, 255, 255, 0.7);
             border-radius: 20px;
-            padding: 50px 40px; /* 少し余白を広げました */
+            padding: 50px 40px;
             box-sizing: border-box;
             text-align: center;
             box-shadow: 0 8px 30px rgba(0,0,0,0.2);
         }
 
         .main-text {
-            font-size: 28px; /* 少し文字を大きくしました */
+            font-size: 28px;
             font-weight: bold;
             margin-bottom: 20px;
             color: #333;
         }
 
         .choice-card {
-            width: 100%; /* 枠いっぱいに広げる */
+            width: 100%;
             max-width: 600px;
             background-color: rgba(255, 255, 255, 0.9);
             border-radius: 15px;
@@ -115,7 +132,6 @@
     let score = 0;
     let maxScore = 0;
 
-    // Google Driveの直リンク形式に変換したリスト
     const bgLinks = [
         'https://drive.google.com/thumbnail?id=1Ez4KCt_m2nIvrdVpDUNDcmbcmA7s42BQ&sz=w1920',
         'https://drive.google.com/thumbnail?id=13IL8wole1_8Lzmme9CRYNni6VcokIDBe&sz=w1920',
@@ -127,7 +143,7 @@
             const response = await fetch('diagnosis_qap.txt');
             const raw = await response.text();
             parseFile(raw);
-            updateBackground(0); // 最初の背景セット
+            updateBackground(0);
             render();
         } catch (e) {
             document.getElementById('question-label').innerText = "diagnosis_qap.txtを読み込めませんでした。";
@@ -172,7 +188,14 @@
         else if (ratio <= 0.66) url = bgLinks[1];
         else url = bgLinks[2];
         
-        document.getElementById('bg-target').style.backgroundImage = `url('${url}')`;
+        // フェード効果を追加
+        const bgElement = document.getElementById('bg-target');
+        bgElement.classList.add('fade-bg');
+        
+        setTimeout(() => {
+            bgElement.style.backgroundImage = `url('${url}')`;
+            bgElement.classList.remove('fade-bg');
+        }, 400);
     }
 
     function render() {
@@ -208,7 +231,6 @@
         const ratio = maxScore > 0 ? score / maxScore : 0;
         const percent = Math.round(ratio * 100);
 
-        // スコア比率に基づき背景を最終更新
         updateBackground(ratio);
 
         let finalRank = "";
@@ -218,9 +240,7 @@
                 break;
             }
         }
-
         document.getElementById('final-percent').innerText = `test度: ${percent}%`;
-        // ハイフンのない素のテキストを表示
         document.getElementById('rank-label').innerText = finalRank;
     }
 
