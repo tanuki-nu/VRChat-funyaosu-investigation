@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>2択診断システム</title>
+    <style>
+        /* 指定のUIスタイルをベースに再構成 */
+        body {
+            margin: 0;
+            padding: 0;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 150px;
+            font-family: sans-serif;
+            transition: background-image 0.5s ease;
+        }
+
+        .container {
+            width: 75vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .display-box {
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 20px;
+            padding: 40px;
+            box-sizing: border-box;
+            text-align: center;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+
+        .main-text {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .choice-card {
+            width: 85%;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 0 auto 15px;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .choice-card:hover {
+            transform: scale(1.02);
+            background-color: #ffffff;
+        }
+
+        .score-output { font-size: 32px; color: #d63031; font-weight: bold; margin: 20px 0; }
+        #result-screen { display: none; }
+    </style>
+</head>
+<body id="bg-target">
+
+<div class="container">
+    <div id="quiz-screen">
+        <div class="display-box">
+            <div id="question-label" class="main-text">読み込み中...</div>
+        </div>
+        <div id="choices-list" style="width: 100%; margin-top: 20px;"></div>
+    </div>
+
+    <div id="result-screen" class="display-box">
+        <div id="final-percent" class="score-output"></div>
+        <div id="rank-label" class="main-text"></div>
+        <button onclick="location.reload()" style="margin-top:20px; padding:10px 20px; cursor:pointer; border-radius:10px; border:none; background:#333; color:#fff;">最初からやり直す</button>
+    </div>
+</div>
+
+<script>
+    let questions = [];
+    let rankData = [];
+    let currentIdx = 0;
+    let score = 0;
+    let maxScore = 0;
+
+    // 指定された3つの背景リンクのみを使用
+    const bgLinks = [
+        'https://drive.google.com/uc?export=view&id=1Ez4KCt_m2nIvrdVpDUNDcmbcmA7s42BQ',
+        'https://drive.google.com/uc?export=view&id=13IL8wole1_8Lzmme9CRYNni6VcokIDBe',
+        'https://drive.google.com/uc?export=view&id=1MuJ15v1JfyhEi4BZgZlg9aDtE7nd48ML'
+    ];
+
+    async function init() {
+        try {
+            const response = await fetch('diagnosis_qap.txt');
+            const raw = await response.text();
+            parseFile(raw);
+            updateBackground(0); // 初期背景
+            render();
+        } catch (e) {
+            document.getElementById('question-label').innerText = "ファイルの読み込みエラー";
+        }
+    }
+
+    function parseFile(content) {
+        const lines = content.split('\n');
+        let mode = 'quiz';
+        lines.forEach(line => {
+            const t = line.trim();
+            if (!t) return;
+            if (t === '[RESULTS]') { mode = 'rank'; return; }
+
+            if (mode === 'quiz') {
+                if (t.startsWith('^')) {
+                    questions.push({ q: t.replace(/\^/g, ''), options: [] });
+                } else if (t.startsWith('-')) {
+                    const inner = t.substring(1, t.length - 1);
+                    const pairs = inner.split(',');
+                    let qMax = 0;
+                    pairs.forEach(p => {
+                        const [txt, val] = p.split(':').map(s => s.trim().replace(/"/g, ''));
+                        const points = parseInt(val);
+                        questions[questions.length - 1].options.push({ txt, points });
+                        if (points > qMax) qMax = points;
+                    });
+                    maxScore += qMax;
+                }
+            } else {
+                const [threshold, label] = t.split(':');
+                rankData.push({ threshold: parseInt(threshold), label });
+            }
+        });
+        rankData.sort((a, b) => b.threshold - a.threshold);
+    }
+
+    function updateBackground(ratio) {
+        let url = "";
+        // 指定された数値範囲に基づく厳格な処理
+        if (ratio <= 0.33) url = bgLinks[0];
+        else if (ratio <= 0.66) url = bgLinks[1];
+        else url = bgLinks[2];
+        
+        document.getElementById('bg-target').style.backgroundImage = `url('${url}')`;
+    }
+
+    function render() {
+        const data = questions[currentIdx];
+        document.getElementById('question-label').innerText = data.q;
+        const list = document.getElementById('choices-list');
+        list.innerHTML = '';
+
+        data.options.forEach(opt => {
+            const div = document.createElement('div');
+            div.className = 'choice-card';
+            div.innerText = opt.txt;
+            div.onclick = () => next(opt.points);
+            list.appendChild(div);
+        });
+    }
+
+    function next(p) {
+        score += p;
+        currentIdx++;
+        if (currentIdx < questions.length) {
+            render();
+        } else {
+            finish();
+        }
+    }
+
+    function finish() {
+        document.getElementById('quiz-screen').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'block';
+
+        const ratio = score / maxScore; // 問題数全体に対する獲得割合
+        const percent = Math.round(ratio * 100);
+
+        // 指定の計算結果に基づき背景を更新
+        updateBackground(ratio);
+
+        let finalRank = "";
+        for (let r of rankData) {
+            if (percent >= r.threshold) {
+                finalRank = r.label;
+                break;
+            }
+        }
+
+        document.getElementById('final-percent').innerText = `test度: ${percent}%`;
+        document.getElementById('rank-label').innerText = `- ${finalRank} -`;
+    }
+
+    window.onload = init;
+</script>
+
+</body>
+</html>
